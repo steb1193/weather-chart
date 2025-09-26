@@ -1,0 +1,12 @@
+{
+  "name": "Архив метеослужбы",
+  "description": "SvelteKit приложение для отображения метеорологических данных",
+  "version": "1.0.0",
+  "framework": "sveltekit",
+  "devtools": {
+    "enabled": true,
+    "svelte": {
+      "version": "5.0.0"
+    }
+  }
+}

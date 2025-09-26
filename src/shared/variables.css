@@ -1,0 +1,118 @@
+:root {
+    /* === ЦВЕТОВАЯ ПАЛИТРА BOOTSTRAP === */
+
+    /* Основные цвета */
+    --color-primary: #0d6efd;
+    --color-primary-light: #6ea8fe;
+    --color-primary-dark: #0a58ca;
+
+    /* Семантические цвета */
+    --color-success: #198754;
+    --color-success-light: #75b798;
+    --color-success-dark: #146c43;
+
+    --color-error: #dc3545;
+    --color-error-light: #f1aeb5;
+    --color-error-dark: #b02a37;
+
+    --color-warning: #ffc107;
+    --color-warning-light: #ffda6a;
+    --color-warning-dark: #ffca2c;
+
+    --color-info: #0dcaf0;
+    --color-info-light: #6edff6;
+    --color-info-dark: #0aa2c0;
+
+    /* Нейтральные цвета Bootstrap */
+    --color-text-primary: #212529;
+    --color-text-secondary: #6c757d;
+    --color-text-disabled: #adb5bd;
+    --color-text-inverse: #ffffff;
+
+    --color-background-primary: #ffffff;
+    --color-background-secondary: #f8f9fa;
+    --color-background-tertiary: #e9ecef;
+
+    --color-border-primary: #dee2e6;
+    --color-border-light: #f1f3f4;
+
+    /* === РАЗМЕРЫ И ОТСТУПЫ === */
+
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 12px;
+    --spacing-lg: 16px;
+    --spacing-xl: 20px;
+    --spacing-2xl: 24px;
+
+    /* === РАДИУСЫ === */
+
+    --radius-md: 6px;
+    --radius-sm: 4px;
+    --radius-full: 50%;
+
+    /* === ТЕНИ === */
+
+    --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.15);
+
+    /* === ШРИФТЫ === */
+
+    --font-family-primary: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+    --font-size-sm: 14px;
+    --font-size-md: 16px;
+    --font-size-lg: 18px;
+    --font-size-xl: 20px;
+
+    --font-weight-medium: 500;
+    --font-weight-bold: 700;
+
+    /* === ПЕРЕХОДЫ И АНИМАЦИИ === */
+
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.2s ease;
+
+    /* === МАКСИМАЛЬНЫЕ ШИРИНЫ === */
+
+    --max-width-xl: 1200px;
+
+    /* === Z-INDEX === */
+
+    --z-sticky: 1020;
+}
+
+/* === ТЕМНАЯ ТЕМА BOOTSTRAP === */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --color-text-primary: #f8f9fa;
+        --color-text-secondary: #adb5bd;
+        --color-text-disabled: #6c757d;
+
+        --color-background-primary: #212529;
+        --color-background-secondary: #343a40;
+        --color-background-tertiary: #495057;
+
+        --color-border-primary: #495057;
+        --color-border-light: #343a40;
+    }
+}
+
+/* === РАЗМЕРЫ ГРАФИКА === */
+:root {
+    --chart-width: 1200px;
+    --chart-height: 600px;
+}
+
+/* === УМЕНЬШЕННАЯ АНИМАЦИЯ === */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --transition-fast: 0.01ms;
+        --transition-normal: 0.01ms;
+    }
+
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
