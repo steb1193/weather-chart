@@ -3,6 +3,13 @@ import { WeatherAppError } from '@shared/errors';
 import { type WeatherDataPoint, type WeatherDataType, type YearRange } from '@shared/types';
 import type { IDatabaseManager } from '@shared/api-layer/IndexedDBManager';
 
+/**
+ * Валидирует данные погоды и приводит их к типу WeatherDataPoint[]
+ * Проверяет структуру первого элемента и приводит весь массив к нужному типу
+ * @param data - массив данных для валидации
+ * @returns валидированный массив точек данных погоды
+ * @throws WeatherAppError при неверном формате данных
+ */
 function validateWeatherData(data: unknown[]): WeatherDataPoint[] {
     if (!Array.isArray(data)) {
         throw new WeatherAppError(ERROR_CODES.VALIDATION_ERROR, 'Data must be an array');
@@ -25,6 +32,12 @@ export interface IDataLoader {
     loadPrecipitationData(): Promise<WeatherDataPoint[]>;
 }
 
+/**
+ * Загружает данные с сервера и валидирует их
+ * @param endpoint - URL endpoint для загрузки данных
+ * @returns Promise с валидированными данными погоды
+ * @throws WeatherAppError при ошибках сети или валидации
+ */
 function loadDataFromServer(endpoint: string): Promise<WeatherDataPoint[]> {
     return fetch(endpoint)
         .then(response => {
@@ -79,12 +92,23 @@ function getDataFromStorage(
     return dbManager.getData(type, range);
 }
 
+/**
+ * Основной сервис для работы с данными погоды
+ * Управляет загрузкой данных с сервера и кэшированием в IndexedDB
+ */
 export class WeatherDataService {
     constructor(
         private dbManager: IDatabaseManager,
         private dataLoader: IDataLoader
     ) {}
 
+    /**
+     * Получает данные погоды для указанного типа и временного диапазона
+     * Сначала проверяет наличие данных в кэше, при отсутствии загружает с сервера
+     * @param type - тип данных ('temperature' | 'precipitation')
+     * @param range - временной диапазон для фильтрации
+     * @returns Promise с отфильтрованными данными погоды
+     */
     async getWeatherData(type: WeatherDataType, range: YearRange): Promise<WeatherDataPoint[]> {
         try {
             const hasData = await checkDataAvailability(this.dbManager, type);

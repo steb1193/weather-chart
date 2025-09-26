@@ -9,6 +9,11 @@ export interface IDatabaseManager {
     hasData(type: WeatherDataType): Promise<boolean>;
 }
 
+/**
+ * Создает объектные хранилища для IndexedDB
+ * Создает отдельные хранилища для температуры и осадков с индексами по времени
+ * @param db - экземпляр базы данных IndexedDB
+ */
 function createObjectStores(db: IDBDatabase): void {
     if (!db.objectStoreNames.contains('temperature')) {
         const temperatureStore = db.createObjectStore('temperature', { keyPath: 'id' });
@@ -21,6 +26,12 @@ function createObjectStores(db: IDBDatabase): void {
     }
 }
 
+/**
+ * Преобразует точку данных погоды в запись для базы данных
+ * @param point - точка данных погоды
+ * @param type - тип данных (температура или осадки)
+ * @returns запись для сохранения в IndexedDB
+ */
 function convertToDBRecord(point: WeatherDataPoint, type: WeatherDataType): WeatherDBRecord {
     return {
         id: `${type}_${point.t}`,
@@ -30,6 +41,12 @@ function convertToDBRecord(point: WeatherDataPoint, type: WeatherDataType): Weat
     };
 }
 
+/**
+ * Фильтрует записи базы данных по временному диапазону
+ * @param records - массив записей из базы данных
+ * @param range - временной диапазон для фильтрации
+ * @returns отфильтрованные и отсортированные данные погоды
+ */
 function filterDataByYearRange(records: WeatherDBRecord[], range: YearRange): WeatherDataPoint[] {
     return records
         .filter(record => {
@@ -43,6 +60,10 @@ function filterDataByYearRange(records: WeatherDBRecord[], range: YearRange): We
         .sort((a, b) => new Date(a.t).getTime() - new Date(b.t).getTime());
 }
 
+/**
+ * Менеджер для работы с IndexedDB
+ * Обеспечивает кэширование данных погоды в браузере
+ */
 export class IndexedDBManager implements IDatabaseManager {
     private db: IDBDatabase | null = null;
     private readonly dbName = 'WeatherAppDB';
