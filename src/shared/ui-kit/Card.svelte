@@ -1,29 +1,45 @@
 <script lang="ts">
-    export let padding: 'sm' | 'md' | 'lg' = 'md';
-    export let onClick: (() => void) | undefined = undefined;
+    import type { Snippet } from 'svelte';
+
+
+    type CardPadding = 'sm' | 'md' | 'lg';
+
+    interface Props {
+        padding?: CardPadding;
+        onClick?: () => void;
+        children: Snippet;
+    }
+
+    const {
+        padding = 'md',
+        onClick,
+        children
+    }: Props = $props();
 
     function handleClick(): void {
-        if (onClick) {
-            onClick();
+        onClick?.();
+    }
+
+    function handleKeydown(event: KeyboardEvent): void {
+        if (event.key === 'Enter') {
+            handleClick();
         }
     }
 
-    $: cardClasses = [
+    const cardClasses = $derived([
         'card',
         `card--padding-${padding}`
-    ].join(' ');
+    ].join(' '));
 </script>
 
-<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
     class={cardClasses}
     role={onClick ? 'button' : undefined}
-    tabindex={onClick ? 0 : -1}
-    on:click={handleClick}
-    on:keydown={(e) => e.key === 'Enter' && handleClick()}
+    onclick={handleClick}
+    onkeydown={handleKeydown}
 >
     <div class="card__content">
-        <slot />
+        {@render children()}
     </div>
 </div>
 

@@ -6,26 +6,39 @@
         group?: string;
     }
 
-    export let options: SelectOption[] = [];
-    export let value: string | number | undefined;
-    export let label: string | undefined = undefined;
-    export let ariaLabel: string | undefined = undefined;
-    export let onChange: ((event: Event) => void) | undefined = undefined;
+    interface Props {
+        options?: SelectOption[];
+        value?: string | number;
+        label?: string;
+        ariaLabel?: string;
+        onChange?: (event: Event) => void;
+    }
 
-    const selectId = `select-${Math.random().toString(36).substr(2, 9)}`;
+    const {
+        options = [],
+        value,
+        label,
+        ariaLabel,
+        onChange
+    }: Props = $props();
+
+    const DEFAULT_GROUP = 'default';
+    const SELECT_ID_PREFIX = 'select-';
+
+    const selectId = `${SELECT_ID_PREFIX}${Math.random().toString(36).substr(2, 9)}`;
 
     function handleChange(event: Event): void {
         onChange?.(event);
     }
 
-    $: groupedOptions = options.reduce((groups, option) => {
-        const group = option.group || 'default';
+    const groupedOptions = $derived(options.reduce((groups, option) => {
+        const group = option.group || DEFAULT_GROUP;
         if (!groups[group]) {
             groups[group] = [];
         }
         groups[group].push(option);
         return groups;
-    }, {} as Record<string, SelectOption[]>);
+    }, {} as Record<string, SelectOption[]>));
 
     const selectClasses = 'select';
 </script>
@@ -43,10 +56,10 @@
             id={selectId}
             class={selectClasses}
             aria-label={ariaLabel}
-            on:change={handleChange}
+            onchange={handleChange}
         >
             {#each Object.entries(groupedOptions) as [groupName, groupOptions] (groupName)}
-                {#if groupName !== 'default'}
+                {#if groupName !== DEFAULT_GROUP}
                     <optgroup label={groupName}>
                         {#each groupOptions as option (option.value)}
                             <option

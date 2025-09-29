@@ -1,20 +1,33 @@
 <script lang="ts">
+    import { onDestroy } from 'svelte';
     import { Button, Alert, Card } from '@shared/ui-kit';
     import { Chart } from '@widgets/weather-chart';
     import { YearSelectors, validateYearRange } from '@widgets/year-range';
-    import { WeatherDataService, ServerDataLoader } from '@entities/weather-data';
-    import { IndexedDBManager } from '@shared/api-layer';
+    import { WeatherDataService, ServerDataLoader, type LoadingState } from '@entities/weather-data';
+    import { IndexedDBManager } from '@shared/lib';
     import { APP_CONFIG } from '@shared/constants';
     import { WeatherAppError } from '@shared/errors';
-    import { type WeatherDataType, type WeatherDataPoint, type LoadingState } from '@shared/types';
+    import { type WeatherDataType, type WeatherDataPoint } from '@shared/types';
     import { yearRangeStore, updateYearRange } from '@entities/year-range';
 
-    export let weatherType: WeatherDataType = 'temperature';
+    interface Props {
+        weatherType?: WeatherDataType;
+    }
 
-    let data: WeatherDataPoint[] = [];
-    let startYear: number = APP_CONFIG.MIN_YEAR;
-    let endYear: number = APP_CONFIG.MAX_YEAR;
-    let loadingState: LoadingState = { isLoading: true, error: null };
+    const { weatherType = 'temperature' }: Props = $props();
+
+    let data: WeatherDataPoint[] = $state([]);
+    let startYear: number = $state(APP_CONFIG.MIN_YEAR);
+    let endYear: number = $state(APP_CONFIG.MAX_YEAR);
+    let loadingState: LoadingState = $state({
+        isLoading: true,
+        isParsing: false,
+        isSaving: false,
+        error: null,
+        saveProgress: null,
+        dataReady: false,
+        partialData: null
+    });
 
     yearRangeStore.subscribe((range: { startYear: number; endYear: number }) => {
         startYear = range.startYear;
@@ -24,39 +37,57 @@
     let dbManager: IndexedDBManager;
     let dataService: WeatherDataService;
 
-    // Инициализация сервисов
     async function initializeServices(): Promise<void> {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
         try {
             dbManager = new IndexedDBManager();
             await dbManager.init();
 
-            const dataLoader = new ServerDataLoader();
+            const dataLoader = new ServerDataLoader(dbManager);
             dataService = new WeatherDataService(dbManager, dataLoader);
-        } catch (_error: unknown) {
-            // console.error('Failed to initialize services:', error);
-            loadingState = { isLoading: false, error: 'Ошибка инициализации сервисов' };
+
+            dataService.onLoadingStateChange(weatherType, (state) => {
+                loadingState = state;
+            });
+        } catch {
+            loadingState = { isLoading: false, isParsing: false, isSaving: false, error: 'Ошибка инициализации сервисов', saveProgress: null, dataReady: false, partialData: null };
         }
     }
 
-    // Загрузка данных
     async function loadData(): Promise<void> {
         if (!dataService) {
             return;
         }
 
         try {
-            loadingState = { isLoading: true, error: null };
+            loadingState = {
+                isLoading: true,
+                isParsing: false,
+                isSaving: false,
+                error: null,
+                saveProgress: null,
+                dataReady: false,
+                partialData: null
+            };
             const weatherData = await dataService.getWeatherData(weatherType, { startYear, endYear });
             data = weatherData;
-            loadingState = { isLoading: false, error: null };
         } catch (error) {
-            // console.error('Failed to load data:', error);
             const errorMessage = error instanceof WeatherAppError ? error.message : 'Ошибка загрузки данных';
-            loadingState = { isLoading: false, error: errorMessage };
+            loadingState = {
+                isLoading: false,
+                isParsing: false,
+                isSaving: false,
+                error: errorMessage,
+                saveProgress: null,
+                dataReady: false,
+                partialData: null
+            };
         }
     }
 
-    // Обработчики изменения годов
     function handleStartYearChange(year: number): void {
         const validated = validateYearRange(year, endYear);
         updateYearRange(validated.startYear, validated.endYear);
@@ -67,29 +98,30 @@
         updateYearRange(validated.startYear, validated.endYear);
     }
 
-    // Повторная попытка загрузки
     async function retryLoad(): Promise<void> {
         await loadData();
     }
 
-    // Инициализация при монтировании
     async function initialize(): Promise<void> {
         await initializeServices();
-        await loadData();
+        if (dataService) {
+            await loadData();
+        }
     }
 
-    // Реактивность на изменение типа погоды
-    $: if (dataService && weatherType) {
-        loadData();
-    }
+    $effect(() => {
+        if (typeof window !== 'undefined' && dataService && weatherType && startYear && endYear) {
+            loadData();
+        }
+    });
 
-    // Реактивность на изменение диапазона годов
-    $: if (dataService && startYear && endYear) {
-        loadData();
-    }
-
-    // Инициализация
     initialize();
+
+    onDestroy(() => {
+        if (dataService) {
+            dataService.destroy();
+        }
+    });
 </script>
 
 <div class="container">
@@ -122,14 +154,7 @@
                     onEndYearChange={handleEndYearChange}
                 />
 
-                {#if loadingState.isLoading}
-                    <Card padding="lg">
-                        <div class="loading">
-                            <div class="spinner" aria-hidden="true"></div>
-                            <p>Загрузка данных...</p>
-                        </div>
-                    </Card>
-                {:else if loadingState.error}
+                {#if loadingState.error}
                     <Alert variant="error" dismissible={false} title="Ошибка загрузки данных">
                         <h2>Ошибка загрузки данных</h2>
                         <p>{loadingState.error}</p>
@@ -141,8 +166,15 @@
                             Попробовать снова
                         </Button>
                     </Alert>
-                {:else}
+                {:else if loadingState.dataReady || data.length > 0}
                     <Chart data={data} startYear={startYear} endYear={endYear} dataType={weatherType} />
+                {:else if loadingState.isLoading || loadingState.isParsing}
+                    <Card padding="lg">
+                        <div class="loading">
+                            <div class="spinner" aria-hidden="true"></div>
+                            <p>{loadingState.isParsing ? 'Обработка данных...' : 'Загрузка данных...'}</p>
+                        </div>
+                    </Card>
                 {/if}
             </div>
         </div>

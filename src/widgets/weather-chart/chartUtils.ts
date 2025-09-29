@@ -16,6 +16,12 @@ export interface ValueRange {
   step: number;
 }
 
+/**
+ * Рассчитывает размеры рабочей области графика с учетом отступов
+ * @param canvasWidth - ширина canvas в пикселях
+ * @param canvasHeight - высота canvas в пикселях
+ * @returns объект с размерами рабочей области
+ */
 export function getChartDimensions(canvasWidth: number, canvasHeight: number): ChartDimensions {
     const margin = CHART_CONFIG.CANVAS_MARGIN + CHART_CONFIG.LEFT_MARGIN_BOOST;
     const doubleMargin = 2 * margin;
@@ -24,6 +30,13 @@ export function getChartDimensions(canvasWidth: number, canvasHeight: number): C
     return { margin, plotWidth, plotHeight };
 }
 
+/**
+ * Фильтрует данные по временному диапазону и сортирует по времени
+ * @param data - массив точек данных погоды
+ * @param startYear - начальный год для фильтрации
+ * @param endYear - конечный год для фильтрации
+ * @returns отфильтрованный и отсортированный массив данных
+ */
 export function filterDataByYearRange(
     data: WeatherDataPoint[],
     startYear: number,
@@ -36,6 +49,13 @@ export function filterDataByYearRange(
     return filtered.sort((a, b) => new Date(a.t).getTime() - new Date(b.t).getTime());
 }
 
+/**
+ * Рассчитывает "красивый" шаг для подписей оси Y
+ * Алгоритм выбирает оптимальный шаг из значений 1, 2, 5, 10 с соответствующими степенями 10
+ * @param range - диапазон значений (max - min)
+ * @param maxTicks - максимальное количество подписей
+ * @returns оптимальный шаг для подписей
+ */
 function calculateNiceStep(range: number, maxTicks: number): number {
     const maxTicksSafe = Math.max(maxTicks, 1);
     const rough = range / maxTicksSafe;
@@ -56,6 +76,13 @@ function calculateNiceStep(range: number, maxTicks: number): number {
     return nice * magnitude;
 }
 
+/**
+ * Рассчитывает "красивые" пределы для оси Y с отступами и оптимальным шагом
+ * @param min - минимальное значение данных
+ * @param max - максимальное значение данных
+ * @param paddingPercent - процент отступа сверху и снизу (0.05 = 5%)
+ * @returns объект с красивыми пределами и шагом
+ */
 function calculateNiceLimits(min: number, max: number, paddingPercent: number) {
     const rawRange = Math.max(max - min, CHART_CONFIG.EPSILON);
     const padding = rawRange * paddingPercent;
@@ -70,6 +97,12 @@ function calculateNiceLimits(min: number, max: number, paddingPercent: number) {
     return { min: paddedMin, max: paddedMax, step };
 }
 
+/**
+ * Рассчитывает диапазон значений для нормализации с "красивыми" пределами
+ * @param filteredData - отфильтрованные данные для анализа
+ * @param dataType - тип данных ('temperature' | 'precipitation')
+ * @returns объект с диапазоном значений и шагом для подписей
+ */
 export function calculateValueRange(filteredData: WeatherDataPoint[], dataType: 'temperature' | 'precipitation' = 'temperature'): ValueRange {
     const values = filteredData.map(d => d.v);
     const minValue = Math.min(...values);
@@ -77,7 +110,6 @@ export function calculateValueRange(filteredData: WeatherDataPoint[], dataType: 
 
     const niceLimits = calculateNiceLimits(minValue, maxValue, CHART_CONFIG.Y_AXIS_PADDING_PERCENT);
 
-    // Для осадков минимальное значение не должно быть меньше 0
     const adjustedMin = dataType === 'precipitation' ? Math.max(0, niceLimits.min) : niceLimits.min;
     const valueRange = niceLimits.max - adjustedMin;
 
@@ -89,6 +121,13 @@ export function calculateValueRange(filteredData: WeatherDataPoint[], dataType: 
     };
 }
 
+/**
+ * Даунсэмплинг данных с использованием алгоритма LTTB (Largest-Triangle-Three-Buckets)
+ * Сохраняет важные точки (пики, впадины) для визуального представления
+ * @param data - исходные данные для даунсэмплинга
+ * @param targetPoints - целевое количество точек
+ * @returns оптимизированный массив точек данных
+ */
 function lttbDownsample(data: WeatherDataPoint[], targetPoints: number): WeatherDataPoint[] {
     if (data.length <= targetPoints) {
         return data;
@@ -255,13 +294,11 @@ export function drawAxes(
     ctx.strokeStyle = CHART_COLORS.AXIS;
     ctx.lineWidth = CHART_CONFIG.AXIS_LINE_WIDTH;
 
-    // X
     ctx.beginPath();
     ctx.moveTo(margin, margin + plotHeight);
     ctx.lineTo(margin + plotWidth, margin + plotHeight);
     ctx.stroke();
 
-    // Y
     ctx.beginPath();
     ctx.moveTo(margin, margin);
     ctx.lineTo(margin, margin + plotHeight);
@@ -288,6 +325,14 @@ export function drawYAxisLabels(
     }
 }
 
+/**
+ * Создает умные метки дат для оси X с адаптивным форматом
+ * Выбирает оптимальный формат (дни/месяцы/годы) в зависимости от временного диапазона
+ * @param data - данные для анализа временного диапазона
+ * @param margin - отступ графика
+ * @param plotWidth - ширина рабочей области
+ * @returns массив меток с позициями и информацией о выравнивании
+ */
 function buildSmartDateLabels(
     data: WeatherDataPoint[],
     margin: number,
@@ -394,11 +439,9 @@ export function drawAxisTitles(
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
 
-    // «Года» ниже — у самого низа канвы
     const yTitle = canvasHeight - CHART_CONFIG.X_TITLE_FROM_BOTTOM;
     ctx.fillText('Года', canvasWidth / 2, yTitle);
 
-    // Y-ось
     ctx.save();
     ctx.translate(CHART_CONFIG.AXIS_TITLE_TRANSLATE_X, canvasHeight / 2);
     ctx.rotate(CHART_CONFIG.AXIS_TITLE_ROTATION);

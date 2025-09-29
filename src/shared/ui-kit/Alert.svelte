@@ -1,25 +1,41 @@
 <script lang="ts">
-    export let variant: 'success' | 'error' | 'warning' | 'info' = 'info';
-    export let dismissible: boolean = true;
-    export let title: string | undefined = undefined;
+    import type { Snippet } from 'svelte';
 
-    let visible = true;
+    type AlertVariant = 'success' | 'error' | 'warning' | 'info';
+
+    interface Props {
+        variant?: AlertVariant;
+        title?: string;
+        dismissible?: boolean;
+        children: Snippet;
+    }
+
+    const {
+        variant = 'info',
+        title,
+        dismissible = true,
+        children
+    }: Props = $props();
+
+    const ALERT_ICONS: Record<AlertVariant, string> = {
+        success: '✔',
+        error: '✖',
+        warning: '⚠',
+        info: 'ℹ'
+    } as const;
+
+    let visible = $state(true);
 
     function dismiss(): void {
         visible = false;
     }
 
-    $: alertClasses = [
+    const alertClasses = $derived([
         'alert',
         `alert--${variant}`
-    ].filter(Boolean).join(' ');
+    ].join(' '));
 
-    $: alertIcon = {
-        success: '✔',
-        error: '✖',
-        warning: '⚠',
-        info: 'ℹ'
-    }[variant];
+    const alertIcon = $derived(ALERT_ICONS[variant]);
 </script>
 
 {#if visible}
@@ -37,7 +53,7 @@
                 {/if}
 
                 <div class="alert__message">
-                    <slot />
+                    {@render children()}
                 </div>
             </div>
 
@@ -46,7 +62,7 @@
                     type="button"
                     class="alert__dismiss"
                     aria-label="Закрыть уведомление"
-                    on:click={dismiss}
+                    onclick={dismiss}
                 >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="18" y1="6" x2="6" y2="18"></line>

@@ -1,12 +1,30 @@
 <script lang="ts">
-    export let variant: 'primary' | 'secondary' = 'primary';
-    export let size: 'sm' | 'md' | 'lg' = 'md';
-    export let disabled: boolean = false;
-    export let active: boolean = false;
-    export let href: string | undefined = undefined;
-    export let onClick: (() => void) | undefined = undefined;
+    import type { Snippet } from 'svelte';
 
-    const isLink = href !== undefined;
+    type ButtonVariant = 'primary' | 'secondary';
+    type ButtonSize = 'sm' | 'md' | 'lg';
+
+    interface Props {
+        href?: string;
+        variant?: ButtonVariant;
+        size?: ButtonSize;
+        active?: boolean;
+        disabled?: boolean;
+        onClick?: () => void;
+        children: Snippet;
+    }
+
+    const {
+        href,
+        variant = 'primary',
+        size = 'md',
+        active = false,
+        disabled = false,
+        onClick,
+        children
+    }: Props = $props();
+
+    const isLink = $derived(href !== undefined);
 
     function handleClick(event: MouseEvent): void {
         if (disabled) {
@@ -14,18 +32,16 @@
             return;
         }
 
-        if (onClick) {
-            onClick();
-        }
+        onClick?.();
     }
 
-    $: buttonClasses = [
+    const buttonClasses = $derived([
         'btn',
         `btn--${variant}`,
         `btn--${size}`,
-        disabled ? 'btn--disabled' : '',
-        active ? 'btn--active' : ''
-    ].filter(Boolean).join(' ');
+        disabled && 'btn--disabled',
+        active && 'btn--active'
+    ].filter(Boolean).join(' '));
 </script>
 
 {#if isLink}
@@ -34,18 +50,18 @@
         class={buttonClasses}
         role="button"
         tabindex={disabled ? -1 : 0}
-        on:click={handleClick}
+        onclick={handleClick}
     >
-        <slot />
+        {@render children()}
     </a>
 {:else}
     <button
         type="button"
         class={buttonClasses}
         {disabled}
-        on:click={handleClick}
+        onclick={handleClick}
     >
-        <slot />
+        {@render children()}
     </button>
 {/if}
 

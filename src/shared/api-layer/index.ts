@@ -1,1 +1,1 @@
-export { IndexedDBManager } from './IndexedDBManager';
+export { WeatherDataAPI } from './WeatherDataAPI';

@@ -2,55 +2,57 @@
     import { Select } from '@shared/ui-kit';
     import { generateYears, validateYearRange } from './utils';
 
-    export let startYear: number;
-    export let endYear: number;
-    export let onStartYearChange: (year: number) => void;
-    export let onEndYearChange: (year: number) => void;
+    interface Props {
+        startYear: number;
+        endYear: number;
+        onStartYearChange: (year: number) => void;
+        onEndYearChange: (year: number) => void;
+    }
 
-    let currentStartYear = startYear;
-    let currentEndYear = endYear;
+    const {
+        startYear,
+        endYear,
+        onStartYearChange,
+        onEndYearChange
+    }: Props = $props();
 
-    const yearOptions = generateYears();
+    const YEAR_OPTIONS = generateYears();
+    const ARIA_LABELS = {
+        START_YEAR: 'Выберите начальный год',
+        END_YEAR: 'Выберите конечный год'
+    } as const;
 
     function handleStartYearChange(event: Event): void {
         const target = event.target as HTMLSelectElement;
         const year = parseInt(target.value, 10);
-        const validated = validateYearRange(year, currentEndYear);
-        currentStartYear = validated.startYear;
-        currentEndYear = validated.endYear;
-        onStartYearChange(currentStartYear);
+        const validated = validateYearRange(year, endYear);
+        onStartYearChange(validated.startYear);
     }
 
     function handleEndYearChange(event: Event): void {
         const target = event.target as HTMLSelectElement;
         const year = parseInt(target.value, 10);
-        const validated = validateYearRange(currentStartYear, year);
-        currentStartYear = validated.startYear;
-        currentEndYear = validated.endYear;
-        onEndYearChange(currentEndYear);
+        const validated = validateYearRange(startYear, year);
+        onEndYearChange(validated.endYear);
     }
-
-    // Обновляем локальные значения при изменении пропсов
-    $: currentStartYear = startYear;
-    $: currentEndYear = endYear;
 </script>
 
 <div id="selectsContainer">
     <div class="select-group">
         <Select
-            options={yearOptions}
-            value={currentStartYear}
+            options={YEAR_OPTIONS}
+            value={startYear}
             onChange={handleStartYearChange}
-            ariaLabel="Выберите начальный год"
+            ariaLabel={ARIA_LABELS.START_YEAR}
         />
     </div>
 
     <div class="select-group">
         <Select
-            options={yearOptions}
-            value={currentEndYear}
+            options={YEAR_OPTIONS}
+            value={endYear}
             onChange={handleEndYearChange}
-            ariaLabel="Выберите конечный год"
+            ariaLabel={ARIA_LABELS.END_YEAR}
         />
     </div>
 </div>

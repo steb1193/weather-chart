@@ -1,12 +1,16 @@
-import { ERROR_CODES } from '../constants';
-import { WeatherAppError } from '../errors';
-import { type WeatherDataPoint, type WeatherDBRecord, type WeatherDataType, type YearRange } from '../types';
+import { ERROR_CODES } from '@shared/constants';
+import { WeatherAppError } from '@shared/errors';
+import { type WeatherDataPoint, type WeatherDBRecord, type WeatherDataType, type YearRange } from '@shared/types';
+import { BatchSaveQueue, type QueueProgressCallback } from './BatchSaveQueue';
 
 export interface IDatabaseManager {
     init(): Promise<void>;
-    saveData(type: WeatherDataType, data: WeatherDataPoint[]): Promise<void>;
+    saveData(type: WeatherDataType, data: WeatherDataPoint[], itemId?: string): Promise<void>;
     getData(type: WeatherDataType, range: YearRange): Promise<WeatherDataPoint[] | null>;
     hasData(type: WeatherDataType): Promise<boolean>;
+    onSaveProgress(callback: QueueProgressCallback): () => void;
+    hasDataForItem(itemId: string): boolean;
+    isDataComplete(type: string): boolean;
 }
 
 function createObjectStores(db: IDBDatabase): void {
@@ -43,10 +47,18 @@ function filterDataByYearRange(records: WeatherDBRecord[], range: YearRange): We
         .sort((a, b) => new Date(a.t).getTime() - new Date(b.t).getTime());
 }
 
-export class IndexedDBManager implements IDatabaseManager {
+/**
+ * Менеджер для работы с IndexedDB
+ * Обеспечивает кэширование данных погоды в браузере с батчевым сохранением
+ */
+export class IndexedDBManager extends BatchSaveQueue implements IDatabaseManager {
     private db: IDBDatabase | null = null;
     private readonly dbName = 'WeatherAppDB';
     private readonly dbVersion = 1;
+
+    constructor() {
+        super(100, 'weather_data');
+    }
 
     async init(): Promise<void> {
         return new Promise((resolve, reject) => {
@@ -68,7 +80,40 @@ export class IndexedDBManager implements IDatabaseManager {
         });
     }
 
-    async saveData(type: WeatherDataType, data: WeatherDataPoint[]): Promise<void> {
+    async saveData(type: WeatherDataType, data: WeatherDataPoint[], itemId?: string): Promise<void> {
+        if (!this.db) {
+            throw new WeatherAppError(ERROR_CODES.STORAGE_ERROR, 'Database not initialized');
+        }
+
+        await this.clearStore(type);
+
+        return this.addToQueue(type, data, itemId);
+    }
+
+    /**
+     * Очищает хранилище для указанного типа данных
+     */
+    private async clearStore(type: WeatherDataType): Promise<void> {
+        if (!this.db) {
+            throw new WeatherAppError(ERROR_CODES.STORAGE_ERROR, 'Database not initialized');
+        }
+
+        return new Promise((resolve, reject) => {
+            const transaction = this.db!.transaction([type], 'readwrite');
+            const store = transaction.objectStore(type);
+            const clearRequest = store.clear();
+
+            clearRequest.onsuccess = () => resolve();
+            clearRequest.onerror = () => {
+                reject(new WeatherAppError(ERROR_CODES.STORAGE_ERROR, 'Failed to clear existing data'));
+            };
+        });
+    }
+
+    /**
+     * Сохраняет один батч данных в IndexedDB
+     */
+    protected async saveBatch(type: WeatherDataType, batch: WeatherDataPoint[]): Promise<void> {
         if (!this.db) {
             throw new WeatherAppError(ERROR_CODES.STORAGE_ERROR, 'Database not initialized');
         }
@@ -77,37 +122,38 @@ export class IndexedDBManager implements IDatabaseManager {
             const transaction = this.db!.transaction([type], 'readwrite');
             const store = transaction.objectStore(type);
 
-            const clearRequest = store.clear();
-            clearRequest.onsuccess = () => {
-                let completed = 0;
-                const total = data.length;
+            let completed = 0;
+            const total = batch.length;
 
-                if (total === 0) {
-                    resolve();
-                    return;
-                }
+            if (total === 0) {
+                resolve();
+                return;
+            }
 
-                data.forEach((point, index) => {
-                    const record = convertToDBRecord(point, type);
-                    const request = store.add(record);
+            batch.forEach((point, index) => {
+                const record = convertToDBRecord(point, type);
+                const request = store.put(record);
 
-                    request.onsuccess = () => {
-                        completed++;
-                        if (completed === total) {
-                            resolve();
-                        }
-                    };
+                request.onsuccess = () => {
+                    completed++;
+                    if (completed === total) {
+                        resolve();
+                    }
+                };
 
-                    request.onerror = () => {
-                        reject(new WeatherAppError(ERROR_CODES.STORAGE_ERROR, `Failed to save data at index ${index}`));
-                    };
-                });
-            };
-
-            clearRequest.onerror = () => {
-                reject(new WeatherAppError(ERROR_CODES.STORAGE_ERROR, 'Failed to clear existing data'));
-            };
+                request.onerror = () => {
+                    reject(new WeatherAppError(ERROR_CODES.STORAGE_ERROR, `Failed to save batch data at index ${index}`));
+                };
+            });
         });
+    }
+
+    onSaveProgress(callback: QueueProgressCallback): () => void {
+        return this.onProgress(callback);
+    }
+
+    destroy(): void {
+        super.destroy();
     }
 
     async getData(type: WeatherDataType, range: YearRange): Promise<WeatherDataPoint[] | null> {
@@ -150,5 +196,16 @@ export class IndexedDBManager implements IDatabaseManager {
                 reject(new WeatherAppError(ERROR_CODES.STORAGE_ERROR, 'Failed to check data existence'));
             };
         });
+    }
+
+    /**
+     * Проверяет, есть ли данные для указанного элемента в localStorage
+     */
+    hasDataForItem(itemId: string): boolean {
+        return super.hasDataForItem(itemId);
+    }
+
+    isDataComplete(type: string): boolean {
+        return super.isDataComplete(type);
     }
 }
