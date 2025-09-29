@@ -61,7 +61,17 @@ src/
 │   └── index.ts
 ├── shared/               # Shared layer
 │   ├── api-layer/        # API сервисы
-│   │   ├── IndexedDBManager.ts
+│   │   ├── WeatherDataAPI.ts
+│   │   └── index.ts
+│   ├── lib/             # Утилиты и сервисы
+│   │   ├── batch-renderer/    # Batch рендеринг графиков
+│   │   │   ├── BatchRenderer.ts
+│   │   │   └── index.ts
+│   │   ├── storage/          # Хранение данных
+│   │   │   ├── IndexedDBManager.ts
+│   │   │   ├── BatchSaveQueue.ts
+│   │   │   └── index.ts
+│   │   ├── data-processing.ts # Обработка данных
 │   │   └── index.ts
 │   ├── ui-kit/          # UI компоненты
 │   │   ├── Alert.svelte
@@ -70,6 +80,8 @@ src/
 │   │   ├── Select.svelte
 │   │   └── index.ts
 │   ├── constants.ts     # Константы и типы
+│   ├── types.ts        # TypeScript типы
+│   ├── errors.ts       # Обработка ошибок
 │   ├── variables.css    # CSS переменные
 │   └── index.ts
 └── routes/              # SvelteKit маршруты
@@ -125,5 +137,26 @@ src/
 
 ### Shared Layer
 - **Назначение**: Переиспользуемый код
-- **Содержит**: UI компоненты, API, утилиты
-- **Примеры**: `ui-kit`, `api-layer`, `constants`
+- **Содержит**: UI компоненты, API, утилиты, библиотеки
+- **Примеры**: `ui-kit`, `api-layer`, `lib/batch-renderer`, `lib/storage`, `constants`, `types`, `errors`
+
+## Современные технологии
+
+### Svelte 5 Runes
+Проект использует современный синтаксис Svelte 5 с runes:
+- `$props()` - декларация пропсов
+- `$state()` - реактивное состояние
+- `$derived()` - вычисляемые значения
+- `$effect()` - побочные эффекты
+
+### TypeScript
+Строгая типизация для всех компонентов и функций:
+- Интерфейсы для пропсов компонентов
+- Типы для данных погоды
+- Типизированные API методы
+
+### Batch обработка
+Оптимизация производительности через:
+- BatchRenderer для плавной отрисовки графиков
+- BatchSaveQueue для эффективного сохранения в IndexedDB
+- Downsampling данных для оптимизации отображения

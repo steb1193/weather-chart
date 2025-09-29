@@ -14,9 +14,17 @@ src/widgets/weather-chart/
 └── index.ts             # Экспорты
 ```
 
+### Shared Layer
+```
+src/shared/lib/batch-renderer/
+├── BatchRenderer.ts      # Batch рендеринг графиков
+└── index.ts             # Экспорты
+```
+
 ### Зависимости
 - **Shared Layer**: `@shared/constants` - константы конфигурации
 - **Shared Layer**: `@shared/types` - типы данных
+- **Shared Layer**: `@shared/lib/batch-renderer` - BatchRenderer для отрисовки
 - **Entities Layer**: `@entities/weather-data` - управление данными
 
 ## Компонент Chart.svelte
@@ -50,20 +58,89 @@ src/widgets/weather-chart/
 - Рассчитывает диапазон значений через calculateValueRange()
 - Выполняет все этапы отрисовки по порядку
 
-#### clearCanvas()
-**Работа**: Очистка canvas от предыдущих данных
-**Для чего**: Подготовка к новой отрисовке
+#### onMount()
+**Работа**: Инициализация BatchRenderer при монтировании компонента
+**Для чего**: Создание экземпляра BatchRenderer и подготовка к отрисовке
 **Как работает**:
-- Использует clearRect() для очистки всей области canvas
-- Заполняет фон белым цветом через fillRect() для корректного отображения
+- Создает экземпляр BatchRenderer
+- Устанавливает флаг готовности canvas
+- Вызывает отрисовку если данные уже загружены
+
+#### drawChart()
+**Работа**: Основная функция подготовки данных и запуска batch рендеринга
+**Для чего**: Подготовка контекста рендеринга и запуск BatchRenderer
+**Как работает**:
+- Получает 2D контекст canvas
+- Настраивает HiDPI масштабирование через devicePixelRatio
+- Рассчитывает рабочую область через getChartDimensions()
+- Фильтрует данные по годам через filterDataByYearRange()
+- Применяет даунсэмплинг через downsampleData() для производительности
+- Рассчитывает диапазон значений через calculateValueRange()
+- Создает RenderContext и передает в BatchRenderer.render()
+
+#### scheduleRender()
+**Работа**: Планирование отрисовки через requestAnimationFrame
+**Для чего**: Оптимизация производительности и предотвращение блокировки UI
+**Как работает**:
+- Отменяет предыдущий запрос отрисовки если есть
+- Использует requestAnimationFrame для синхронизации с браузером
+- Вызывает drawChart() в следующем кадре анимации
 
 ### Реактивность
 **Работа**: Автоматическое обновление при изменении данных
 **Для чего**: Синхронизация графика с состоянием приложения
 **Как работает**:
-- Svelte реактивное выражение отслеживает изменения data, startYear, endYear
-- При изменении автоматически вызывается drawChart()
+- Svelte $effect отслеживает изменения data, startYear, endYear, dataType
+- При изменении автоматически вызывается scheduleRender()
 - Обеспечивает актуальность отображаемых данных
+
+## BatchRenderer (shared/lib/batch-renderer/BatchRenderer.ts)
+
+### Назначение
+BatchRenderer обеспечивает плавную отрисовку больших графиков без блокировки UI через разбиение процесса на батчи.
+
+### Основные методы
+
+#### render()
+**Работа**: Основной метод batch рендеринга графика
+**Для чего**: Плавная отрисовка без блокировки интерфейса
+**Как работает**:
+- Разбивает данные на батчи по 100 точек
+- Очищает canvas через clearCanvas()
+- Рисует элементы поэтапно: сетка, оси, линия, точки, подписи
+- Использует requestAnimationFrame для каждого батча
+- Поддерживает отмену рендеринга через cancel()
+
+#### clearCanvas()
+**Работа**: Очистка canvas с учетом device pixel ratio
+**Для чего**: Подготовка к новой отрисовке
+**Как работает**:
+- Рассчитывает логические размеры с учетом DPR
+- Очищает canvas через clearRect()
+- Заполняет фон цветом из CHART_COLORS.BACKGROUND
+
+#### cancel()
+**Работа**: Отмена текущего процесса рендеринга
+**Для чего**: Предотвращение конфликтов при быстрых изменениях данных
+**Как работает**:
+- Увеличивает счетчик currentRenderId
+- Устанавливает флаг isRendering = false
+- Отменяет текущий requestAnimationFrame
+
+### Интерфейс RenderContext
+```typescript
+interface RenderContext {
+    ctx: CanvasRenderingContext2D;
+    margin: number;
+    plotWidth: number;
+    plotHeight: number;
+    minValue: number;
+    valueRange: number;
+    dataType: 'temperature' | 'precipitation';
+    t0: number;
+    t1: number;
+}
+```
 
 ## Утилитарные функции (chartUtils.ts)
 
